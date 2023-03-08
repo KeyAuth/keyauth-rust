@@ -25,6 +25,7 @@ use block_modes::{BlockMode, Cbc};
 type Aes256Cbc = Cbc<Aes256, Pkcs7>;
 
 /// every function in this struct (accept log) returns a Result and Err("Request was tampered with") will be returned if the request signature doesnt mathc the sha256 hmac of the message
+#[derive(Debug, Clone)]
 pub struct KeyauthApi {
     name: String,
     owner_id: String,

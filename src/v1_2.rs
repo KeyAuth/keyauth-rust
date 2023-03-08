@@ -21,6 +21,7 @@ use hmac_sha256::HMAC;
 use base16::decode;
 
 /// every function in this struct (accept log) returns a Result and Err("Request was tampered with") will be returned if the request signature doesnt mathc the sha256 hmac of the message
+#[derive(Debug, Clone)]
 pub struct KeyauthApi {
     name: String,
     owner_id: String,
