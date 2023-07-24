@@ -1,3 +1,4 @@
+I consent to the transfer of this crate to the GitHub user @wnelson03 when he emails help@crates.io for it. 
 # NO LONGER MAINTAINED
 i will accpet PRs but i will no longer activly maintain this
 willing to transfer this repo to some1 idealy keyauth themselves
