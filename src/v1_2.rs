@@ -72,7 +72,7 @@ impl KeyauthApi {
             last_login: String::new(),
             subscription: String::new(),
             sub_time_left: 0,
-            expiry: 0,
+            expiry: String::new(),
             message: String::new(),
             success: false,
             blacklisted: false,
