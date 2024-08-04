@@ -41,7 +41,7 @@ pub struct KeyauthApi {
     pub last_login: String,
     pub subscription: String,
     pub sub_time_left: i64,
-    pub expiry: u64,
+    pub expiry: String,
     pub message: String,
     pub success: bool,
     pub blacklisted: bool,
@@ -297,7 +297,7 @@ impl KeyauthApi {
             self.last_login = json_rep["info"]["lastlogin"].as_str().unwrap().to_string();
             self.subscription = json_rep["info"]["subscriptions"][0]["subscription"].as_str().unwrap().to_string();
             self.sub_time_left = json_rep["info"]["subscriptions"][0]["timeleft"].as_i64().unwrap();
-            self.expiry = json_rep["info"]["subscriptions"][0]["expiry"].as_u64().unwrap();
+            self.expiry = json_rep["info"]["subscriptions"][0]["expiry"].as_str().unwrap().to_string();
             Ok(())
         } else {
             Err(json_rep["message"].as_str().unwrap().to_string())
@@ -354,7 +354,7 @@ impl KeyauthApi {
             self.last_login = json_rep["info"]["lastlogin"].as_str().unwrap().to_string();
             self.subscription = json_rep["info"]["subscriptions"][0]["subscription"].as_str().unwrap().to_string();
             self.sub_time_left = json_rep["info"]["subscriptions"][0]["timeleft"].as_i64().unwrap();
-            self.expiry = json_rep["info"]["subscriptions"][0]["expiry"].as_u64().unwrap();
+            self.expiry = json_rep["info"]["subscriptions"][0]["expiry"].as_str().unwrap().to_string();
             Ok(())
         } else {
             Err(json_rep["message"].as_str().unwrap().to_string())
