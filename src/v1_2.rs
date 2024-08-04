@@ -353,6 +353,8 @@ impl KeyauthApi {
             self.create_date = json_rep["info"]["createdate"].as_str().unwrap().to_string();
             self.last_login = json_rep["info"]["lastlogin"].as_str().unwrap().to_string();
             self.subscription = json_rep["info"]["subscriptions"][0]["subscription"].as_str().unwrap().to_string();
+            self.sub_time_left = json_rep["info"]["subscriptions"][0]["timeleft"].as_i64().unwrap();
+            self.expiry = json_rep["info"]["subscriptions"][0]["expiry"].as_u64().unwrap();
             Ok(())
         } else {
             Err(json_rep["message"].as_str().unwrap().to_string())
