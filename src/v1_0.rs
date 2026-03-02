@@ -98,8 +98,8 @@ impl KeyauthApi {
 
         let mut req_data = HashMap::new();
         req_data.insert("type", encode_lower(b"init"));
-        if hash.is_some() {
-            req_data.insert("hash", Encryption::encrypt(hash.unwrap(), &self.secret, &init_iv));
+        if let Some(hash) = hash {
+            req_data.insert("hash", Encryption::encrypt(hash, &self.secret, &init_iv));
         }
         req_data.insert("ver", Encryption::encrypt(&self.version, &self.secret, &init_iv));
         req_data.insert("name", encode_lower(&self.name.as_bytes()));
@@ -573,15 +573,15 @@ impl KeyauthApi {
             httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
         let now = SystemTime::now();
 
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let Some(last_local) = last_local {
             if now.duration_since(last_local).is_err() {
                 return Err("system clock moved backwards; possible time tampering".to_string());
             }
         }
 
-        let last_server = self.server_time_utc.borrow().clone();
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_server = *self.server_time_utc.borrow();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let (Some(last_server), Some(last_local)) = (last_server, last_local) {
             let elapsed = now
                 .duration_since(last_local)
@@ -638,14 +638,14 @@ impl Encryption {
         let mut buffer = [0u8; 128];
         let pos = plain_text.len();
         buffer[..pos].copy_from_slice(plain_text);
-        let cipher = Aes256Cbc::new_from_slices(&key, &iv).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key.as_bytes(), iv.as_bytes()).unwrap();
         let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
         encode_lower(ciphertext)
     }
 
     fn decrypt_string(cipher_text: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
         let cipher_text = decode(cipher_text).unwrap();
-        let cipher = Aes256Cbc::new_from_slices(&key, &iv).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key.as_bytes(), iv.as_bytes()).unwrap();
         cipher.decrypt_vec(&cipher_text).unwrap()
     }
 

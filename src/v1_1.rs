@@ -14,6 +14,7 @@ use base16::decode;
 pub struct KeyauthApi {
     name: String,
     owner_id: String,
+    #[allow(dead_code)]
     secret: String,
     version: String,
     session_id: String,
@@ -75,8 +76,8 @@ impl KeyauthApi {
     pub fn init(&mut self, hash: Option<&str>) -> Result<(), String> {
         let mut req_data = HashMap::new();
         req_data.insert("type", "init");
-        if hash.is_some() {
-            req_data.insert("hash", hash.unwrap());
+        if let Some(hash) = hash {
+            req_data.insert("hash", hash);
         }
         req_data.insert("ver", &self.version);
         req_data.insert("name", &self.name);
@@ -514,15 +515,15 @@ impl KeyauthApi {
             httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
         let now = SystemTime::now();
 
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let Some(last_local) = last_local {
             if now.duration_since(last_local).is_err() {
                 return Err("system clock moved backwards; possible time tampering".to_string());
             }
         }
 
-        let last_server = self.server_time_utc.borrow().clone();
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_server = *self.server_time_utc.borrow();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let (Some(last_server), Some(last_local)) = (last_server, last_local) {
             let elapsed = now
                 .duration_since(last_local)

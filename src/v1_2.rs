@@ -114,8 +114,8 @@ impl KeyauthApi {
         self.enckey_s = format!("{}-{}", self.enckey, self.secret);
         let mut req_data = HashMap::new();
         req_data.insert("type", "init");
-        if hash.is_some() {
-            req_data.insert("hash", hash.unwrap());
+        if let Some(hash) = hash {
+            req_data.insert("hash", hash);
         }
         req_data.insert("ver", &self.version);
         req_data.insert("name", &self.name);
@@ -903,7 +903,7 @@ impl KeyauthApi {
                 Err(_) => continue,
             };
             let mut buf = [0u8; 4096];
-            stream.read(&mut buf).unwrap();
+            let _ = stream.read(&mut buf).unwrap();
             let mut headers = [httparse::EMPTY_HEADER; 16];
             let mut req = httparse::Request::new(&mut headers);
             req.parse(&buf).unwrap();
@@ -916,8 +916,8 @@ impl KeyauthApi {
                 let token = &s[start..];
                 let mut req_data = HashMap::new();
                 req_data.insert("type", "login");
-                req_data.insert("username", &user);
-                req_data.insert("token", &token);
+                req_data.insert("username", user);
+                req_data.insert("token", token);
                 req_data.insert("name", &self.name);
                 req_data.insert("ownerid", &self.owner_id);
                 req_data.insert("hwid", &self.hwid);
@@ -994,7 +994,7 @@ Server: \r\n\r\n
                 Err(_) => continue,
             };
             let mut buf = [0u8; 4096];
-            stream.read(&mut buf).unwrap();
+            let _ = stream.read(&mut buf).unwrap();
             let mut headers = [httparse::EMPTY_HEADER; 16];
             let mut req = httparse::Request::new(&mut headers);
             req.parse(&buf).unwrap();
@@ -1030,15 +1030,15 @@ Server: \r\n\r\n
             httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
         let now = SystemTime::now();
 
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let Some(last_local) = last_local {
             if now.duration_since(last_local).is_err() {
                 return Err("system clock moved backwards; possible time tampering".to_string());
             }
         }
 
-        let last_server = self.server_time_utc.borrow().clone();
-        let last_local = self.local_time_at_server_time.borrow().clone();
+        let last_server = *self.server_time_utc.borrow();
+        let last_local = *self.local_time_at_server_time.borrow();
         if let (Some(last_server), Some(last_local)) = (last_server, last_local) {
             let elapsed = now
                 .duration_since(last_local)
