@@ -1028,8 +1028,11 @@ Server: \r\n\r\n
             Some(value) => value,
             None => return Ok(()),
         };
-        let date_str = date_value.to_str().map_err(|_| "invalid Date header".to_string())?;
-        let server_time = httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
+        let date_str = date_value
+            .to_str()
+            .map_err(|_| "invalid Date header".to_string())?;
+        let server_time =
+            httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
         let now = SystemTime::now();
 
         if let Some(last_local) = self.local_time_at_server_time {
@@ -1038,16 +1041,27 @@ Server: \r\n\r\n
             }
         }
 
-        if let (Some(last_server), Some(last_local)) = (self.server_time_utc, self.local_time_at_server_time) {
-            let elapsed = now.duration_since(last_local).unwrap_or(Duration::from_secs(0));
+        if let (Some(last_server), Some(last_local)) =
+            (self.server_time_utc, self.local_time_at_server_time)
+        {
+            let elapsed = now
+                .duration_since(last_local)
+                .unwrap_or(Duration::from_secs(0));
             let expected_server = last_server + elapsed;
             let drift = if server_time >= expected_server {
-                server_time.duration_since(expected_server).unwrap_or(Duration::from_secs(0))
+                server_time
+                    .duration_since(expected_server)
+                    .unwrap_or(Duration::from_secs(0))
             } else {
-                expected_server.duration_since(server_time).unwrap_or(Duration::from_secs(0))
+                expected_server
+                    .duration_since(server_time)
+                    .unwrap_or(Duration::from_secs(0))
             };
             if drift.as_secs() > self.max_time_drift_secs {
-                return Err("system clock is out of sync with server time; possible time tampering".to_string());
+                return Err(
+                    "system clock is out of sync with server time; possible time tampering"
+                        .to_string(),
+                );
             }
         }
 
@@ -1068,7 +1082,8 @@ Server: \r\n\r\n
             req_data_str.push_str(&format!("{}={}&", d.0, d.1))
         }
         req_data_str = req_data_str.strip_suffix("&").unwrap().to_string();
-        let resp = client.post(url.to_string())
+        let resp = client
+            .post(url.to_string())
             .body(req_data_str)
             .header("User-Agent", "KeyAuth")
             .header("Content-Type", "application/x-www-form-urlencoded")
