@@ -12,10 +12,23 @@ keyauth = { version = "*", features = ["v1_2", "v1_1", "seller"], default-featur
 the ``default-features = false`` disabled the default v1_3 api.
 
 basic usage:
-```rust
-let mut auth = keyauth::v1_3::KeyauthApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://keyauth.win/api/1.3/"
+```no_run
+use keyauth::v1_3::KeyauthApi;
+
+let mut auth = KeyauthApi::new(
+    "application name",
+    "ownerid",
+    "application secret",
+    "application version",
+    "https://keyauth.win/api/1.3/",
+); // if you dont have a custom domain for api use "https://keyauth.win/api/1.3/"
 auth.init(None).unwrap(); // None -> no hash set, Some("hash") -> if you have has checking enabled
-auth.login("username".to_string(), "password".to_string(), Some("hwid".to_string())).unwrap(); // if you want to automaticly generate hwid use None insted of Some(...)
+auth.login(
+    "username".to_string(),
+    "password".to_string(),
+    Some("hwid".to_string()),
+)
+.unwrap(); // if you want to automaticly generate hwid use None insted of Some(...)
 ```
 
 also if you want to use an obfuscator for rust i recommend using [obfstr](https://crates.io/crates/obfstr) and [llvm obfuscator](https://github.com/eshard/obfuscator-llvm/wiki/Rust-obfuscation-guide)

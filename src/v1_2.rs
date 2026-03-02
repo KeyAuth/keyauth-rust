@@ -2,10 +2,23 @@
 unofficial [keyauth](https://keyauth.cc) library that uses 1.2 api version
 
 basic usage:
-```rust
-let mut auth = keyauth::v1_2::KeyauthApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://keyauth.win/api/1.2/"
-auth.init().unwrap();
-auth.login("username", "password", Some("hwid".to_string()).unwrap()); // if you want to automaticly generate hwid use None insted.
+```no_run
+use keyauth::v1_2::KeyauthApi;
+
+let mut auth = KeyauthApi::new(
+    "application name",
+    "ownerid",
+    "application secret",
+    "application version",
+    "https://keyauth.win/api/1.2/",
+);
+auth.init(None).unwrap();
+auth.login(
+    "username".to_string(),
+    "password".to_string(),
+    Some("hwid".to_string()),
+)
+.unwrap();
 ```
 
 also if you want to use an obfuscator for rust i recommend using [obfstr](https://crates.io/crates/obfstr) and [llvm obfuscator](https://github.com/eshard/obfuscator-llvm/wiki/Rust-obfuscation-guide)
