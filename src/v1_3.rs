@@ -967,7 +967,8 @@ impl KeyauthApi {
                 } else {
                     (200, json_rep["message"].as_str().unwrap())
                 };
-                let response = format!(r#"HTTP/1.1 {} OK
+                let response = format!(
+                    r#"HTTP/1.1 {} OK
 Access-Control-Allow-Methods: Get, Post
 Access-Control-Allow-Origin: *
 Via: hugzho's big brain
@@ -975,7 +976,9 @@ Location: your kernel ;)
 Retry-After: never lmao
 Server: \r\n\r\n
 
-{}"#, status, body);
+{}"#,
+                    status, body
+                );
                 stream.write_all(response.as_bytes()).unwrap();
                 return Ok(());
             }
@@ -985,7 +988,7 @@ Server: \r\n\r\n
 
     #[cfg(feature = "web_loader")]
     pub fn button(&self, button: &str) -> Result<(), String> {
-         use std::io::Write;
+        use std::io::Write;
 
         let listener = TcpListener::bind("127.0.0.1:1337");
         if listener.is_err() {
@@ -1003,8 +1006,13 @@ Server: \r\n\r\n
             let mut headers = [httparse::EMPTY_HEADER; 16];
             let mut req = httparse::Request::new(&mut headers);
             req.parse(&buf).unwrap();
-            if req.path.unwrap().starts_with(format!("/{}", button).as_str()) {
-                let response = format!(r#"HTTP/1.1 {} OK
+            if req
+                .path
+                .unwrap()
+                .starts_with(format!("/{}", button).as_str())
+            {
+                let response = format!(
+                    r#"HTTP/1.1 {} OK
 Access-Control-Allow-Methods: Get, Post
 Access-Control-Allow-Origin: *
 Via: hugzho's big brain
@@ -1012,7 +1020,9 @@ Location: your kernel ;)
 Retry-After: never lmao
 Server: \r\n\r\n
 
-{}"#, 420, "SHEESH");
+{}"#,
+                    420, "SHEESH"
+                );
                 stream.write_all(response.as_bytes()).unwrap();
                 return Ok(());
             }
