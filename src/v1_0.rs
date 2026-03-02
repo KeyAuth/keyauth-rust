@@ -638,14 +638,14 @@ impl Encryption {
         let mut buffer = [0u8; 128];
         let pos = plain_text.len();
         buffer[..pos].copy_from_slice(plain_text);
-        let cipher = Aes256Cbc::new_from_slices(key.as_bytes(), iv.as_bytes()).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key, iv).unwrap();
         let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
         encode_lower(ciphertext)
     }
 
     fn decrypt_string(cipher_text: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
         let cipher_text = decode(cipher_text).unwrap();
-        let cipher = Aes256Cbc::new_from_slices(key.as_bytes(), iv.as_bytes()).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key, iv).unwrap();
         cipher.decrypt_vec(&cipher_text).unwrap()
     }
 
