@@ -1,7 +1,7 @@
 # KeyAuth Rust library
 https://docs.rs/keyauth/latest/keyauth/
 
-Credits: [@davidon-top](https://github.com/davidon-top)
+Credits: Nigel (Discord: chefendpoint, Telegram: ELF_Nigel)
 
 ## **Bugs**
 
@@ -18,7 +18,7 @@ service, where the service provides users with access to any substantial set of
 the features or functionality of the software.
 
 * You may not move, change, disable, or circumvent the license key functionality
-in the software, and you may not remove or obscure any functionality in the
+to the software, and you may not remove or obscure any functionality in the
 software that is protected by the license key.
 
 * You may not alter, remove, or obscure any licensing, copyright, or other notices
