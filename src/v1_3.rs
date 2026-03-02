@@ -28,11 +28,13 @@ use uuid::Uuid;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
+use std::time::UNIX_EPOCH;
 use reqwest::blocking::Client;
 use reqwest::blocking::Response;
 use reqwest::redirect::Policy;
 use reqwest::header::{HeaderMap, DATE};
 use reqwest::Url;
+use ed25519_dalek::{Signature, VerifyingKey, Verifier};
 use hmac_sha256::HMAC;
 use base16::decode;
 
@@ -202,6 +204,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -252,6 +256,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -300,6 +306,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -358,6 +366,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -409,6 +419,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -451,6 +463,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -496,6 +510,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -537,6 +553,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -582,6 +600,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -619,6 +639,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -663,6 +685,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -706,6 +730,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -762,6 +788,8 @@ impl KeyauthApi {
         let head = req.headers().clone();
         let resp = req.text().unwrap();
 
+        self.verify_ed25519_response(&resp, &head)?;
+
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
             {
@@ -802,6 +830,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -863,6 +893,8 @@ impl KeyauthApi {
         let req = self.request(req_data, self.api_url.clone())?;
         let head = req.headers().clone();
         let resp = req.text().unwrap();
+
+        self.verify_ed25519_response(&resp, &head)?;
 
         if !head.contains_key("signature") {
             #[cfg(feature = "panic")]
@@ -939,6 +971,8 @@ impl KeyauthApi {
                 let req = self.request(req_data, self.api_url.clone())?;
                 let head = req.headers().clone();
                 let resp = req.text().unwrap();
+
+                self.verify_ed25519_response(&resp, &head)?;
 
                 if !head.contains_key("signature") {
                     #[cfg(feature = "panic")]
@@ -1135,6 +1169,58 @@ Server: \r\n\r\n
             }
         }
         Err("api host not in allowlist".to_string())
+    }
+
+    fn verify_ed25519_response(&self, body: &str, head: &HeaderMap) -> Result<(), String> {
+        let sig_hex = head
+            .get("x-signature-ed25519")
+            .ok_or_else(|| "missing ed25519 signature header".to_string())?
+            .to_str()
+            .map_err(|_| "invalid ed25519 signature header".to_string())?;
+        let ts_str = head
+            .get("x-signature-timestamp")
+            .ok_or_else(|| "missing signature timestamp header".to_string())?
+            .to_str()
+            .map_err(|_| "invalid signature timestamp header".to_string())?;
+
+        let ts: i64 = ts_str
+            .parse()
+            .map_err(|_| "invalid signature timestamp".to_string())?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| "invalid system time".to_string())?
+            .as_secs() as i64;
+        let drift = (now - ts).abs();
+        if drift > 30 {
+            return Err("signature timestamp drift too large".to_string());
+        }
+
+        const PUBLIC_KEY_HEX: &str =
+            "5586b4bc69c7a4b487e4563a4cd96afd39140f919bd31cea7d1c6a1e8439422b";
+        let public_key_bytes = hex::decode(PUBLIC_KEY_HEX)
+            .map_err(|_| "invalid public key hex".to_string())?;
+        let public_key = VerifyingKey::from_bytes(
+            public_key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(|_| "invalid public key length".to_string())?,
+        )
+        .map_err(|_| "invalid public key".to_string())?;
+
+        let sig_bytes = hex::decode(sig_hex)
+            .map_err(|_| "invalid signature hex".to_string())?;
+        let signature =
+            Signature::from_slice(&sig_bytes).map_err(|_| "invalid signature".to_string())?;
+
+        let mut message = Vec::with_capacity(ts_str.len() + body.len());
+        message.extend_from_slice(ts_str.as_bytes());
+        message.extend_from_slice(body.as_bytes());
+
+        public_key
+            .verify(&message, &signature)
+            .map_err(|_| "ed25519 signature verification failed".to_string())?;
+
+        Ok(())
     }
 
     fn make_hmac(message: &str, key: &str) -> String {
