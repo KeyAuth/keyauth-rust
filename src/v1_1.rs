@@ -2,15 +2,19 @@
 WARNING! this api version has no special security, it should be only used if you are connecting to keyauth from your server and not from a client.
 */
 
-use uuid::Uuid;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 use reqwest::blocking::Client;
+use reqwest::blocking::Response;
+use reqwest::header::{HeaderMap, DATE};
 use base16::decode;
 
 /// every function in this struct (accept log) returns a Result and Err("Request was tampered with") will be returned if the request signature doesnt mathc the sha256 hmac of the message
 pub struct KeyauthApi {
     name: String,
     owner_id: String,
+    #[allow(dead_code)]
     secret: String,
     version: String,
     session_id: String,
@@ -30,6 +34,10 @@ pub struct KeyauthApi {
     pub success: bool,
     pub blacklisted: bool,
     pub response: String,
+    pub time_check_enabled: bool,
+    pub max_time_drift_secs: u64,
+    server_time_utc: RefCell<Option<SystemTime>>,
+    local_time_at_server_time: RefCell<Option<SystemTime>>,
 }
 
 impl KeyauthApi {
@@ -57,6 +65,10 @@ impl KeyauthApi {
             success: false,
             blacklisted: false,
             response: String::new(),
+            time_check_enabled: true,
+            max_time_drift_secs: 300,
+            server_time_utc: RefCell::new(None),
+            local_time_at_server_time: RefCell::new(None),
         }
     }
 
@@ -64,15 +76,15 @@ impl KeyauthApi {
     pub fn init(&mut self, hash: Option<&str>) -> Result<(), String> {
         let mut req_data = HashMap::new();
         req_data.insert("type", "init");
-        if hash.is_some() {
-            req_data.insert("hash", hash.unwrap());
+        if let Some(hash) = hash {
+            req_data.insert("hash", hash);
         }
         req_data.insert("ver", &self.version);
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         if resp == "KeyAuth_Invalid" {
@@ -113,8 +125,8 @@ impl KeyauthApi {
         req_data.insert("ownerid", &self.owner_id);
         req_data.insert("hwid", &hwidd);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -140,8 +152,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -168,8 +180,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -202,8 +214,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -230,8 +242,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -252,8 +264,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -275,8 +287,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -296,8 +308,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -319,8 +331,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -336,8 +348,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -358,8 +370,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -381,8 +393,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -402,7 +414,7 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        Self::request(req_data, &self.api_url);
+        let _ = self.request(req_data, self.api_url.clone());
     }
 
     /// sets a user variable to varvalue
@@ -415,8 +427,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -435,8 +447,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -463,7 +475,7 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        Self::request(req_data, &self.api_url);
+        let _ = self.request(req_data, self.api_url.clone());
     }
 
     /// changes Username, 
@@ -475,8 +487,8 @@ impl KeyauthApi {
         req_data.insert("name", &self.name);
         req_data.insert("ownerid", &self.owner_id);
 
-        let req = Self::request(req_data, &self.api_url);
-        let head = req.headers().clone();
+        let req = self.request(req_data, self.api_url.clone())?;
+        let _head = req.headers().clone();
         let resp = req.text().unwrap();
 
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -488,17 +500,71 @@ impl KeyauthApi {
         }
     }
 
-    fn request(req_data: HashMap<&str, &str>, url: &str) -> reqwest::blocking::Response {
+    fn update_time_from_headers(&self, headers: &HeaderMap) -> Result<(), String> {
+        if !self.time_check_enabled {
+            return Ok(());
+        }
+        let date_value = match headers.get(DATE) {
+            Some(value) => value,
+            None => return Ok(()),
+        };
+        let date_str = date_value
+            .to_str()
+            .map_err(|_| "invalid Date header".to_string())?;
+        let server_time =
+            httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
+        let now = SystemTime::now();
+
+        let last_local = *self.local_time_at_server_time.borrow();
+        if let Some(last_local) = last_local {
+            if now.duration_since(last_local).is_err() {
+                return Err("system clock moved backwards; possible time tampering".to_string());
+            }
+        }
+
+        let last_server = *self.server_time_utc.borrow();
+        let last_local = *self.local_time_at_server_time.borrow();
+        if let (Some(last_server), Some(last_local)) = (last_server, last_local) {
+            let elapsed = now
+                .duration_since(last_local)
+                .unwrap_or(Duration::from_secs(0));
+            let expected_server = last_server + elapsed;
+            let drift = if server_time >= expected_server {
+                server_time
+                    .duration_since(expected_server)
+                    .unwrap_or(Duration::from_secs(0))
+            } else {
+                expected_server
+                    .duration_since(server_time)
+                    .unwrap_or(Duration::from_secs(0))
+            };
+            if drift.as_secs() > self.max_time_drift_secs {
+                return Err(
+                    "system clock is out of sync with server time; possible time tampering"
+                        .to_string(),
+                );
+            }
+        }
+
+        *self.server_time_utc.borrow_mut() = Some(server_time);
+        *self.local_time_at_server_time.borrow_mut() = Some(now);
+        Ok(())
+    }
+
+    fn request(&self, req_data: HashMap<&str, &str>, url: String) -> Result<Response, String> {
         let client = Client::new();
         let mut req_data_str = String::new();
         for d in req_data {
             req_data_str.push_str(&format!("{}={}&", d.0, d.1))
         }
         req_data_str = req_data_str.strip_suffix("&").unwrap().to_string();
-        client.post(url.to_string())
+        let resp = client.post(url)
             .body(req_data_str)
             .header("User-Agent", "KeyAuth")
             .header("Content-Type", "application/x-www-form-urlencoded")
-            .send().unwrap()
+            .send()
+            .map_err(|err| err.to_string())?;
+        self.update_time_from_headers(resp.headers())?;
+        Ok(resp)
     }
 }

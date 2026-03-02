@@ -1,23 +1,39 @@
 /*!
-unofficial [keyauth](https://keyauth.cc) library that uses 1.2 api version
+unofficial [keyauth](https://keyauth.cc) library that uses 1.0 api version
 
 basic usage:
-```rust
-let mut auth = keyauth::KeyauthApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://keyauth.win/api/1.2/"
-auth.init().unwrap();
-auth.login("username", "password", Some("hwid".to_string())).unwrap(); // if you want to automaticly generate hwid use None insted.
+```no_run
+use keyauth::v1_0::KeyauthApi;
+
+let mut auth = KeyauthApi::new(
+    "application name",
+    "ownerid",
+    "application secret",
+    "application version",
+    "https://keyauth.win/api/1.0/",
+);
+auth.init(None).unwrap();
+auth.login(
+    "username".to_string(),
+    "password".to_string(),
+    Some("hwid".to_string()),
+)
+.unwrap();
 ```
 
 also if you want to use an obfuscator for rust i recommend using [obfstr](https://crates.io/crates/obfstr) and [llvm obfuscator](https://github.com/eshard/obfuscator-llvm/wiki/Rust-obfuscation-guide)
 */
 
 use uuid::Uuid;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 use reqwest::blocking::Client;
-use hmac_sha256::HMAC;
+use reqwest::blocking::Response;
+use reqwest::header::{HeaderMap, DATE};
 use base16::{decode, encode_lower};
 
-use sha256::{digest, try_digest};
+use sha256::digest;
 use aes::Aes256;
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Cbc};
@@ -49,6 +65,10 @@ pub struct KeyauthApi {
     pub success: bool,
     pub blacklisted: bool,
     pub response: String,
+    pub time_check_enabled: bool,
+    pub max_time_drift_secs: u64,
+    server_time_utc: RefCell<Option<SystemTime>>,
+    local_time_at_server_time: RefCell<Option<SystemTime>>,
 }
 
 impl KeyauthApi {
@@ -77,6 +97,10 @@ impl KeyauthApi {
             success: false,
             blacklisted: false,
             response: String::new(),
+            time_check_enabled: true,
+            max_time_drift_secs: 300,
+            server_time_utc: RefCell::new(None),
+            local_time_at_server_time: RefCell::new(None),
         }
     }
 
@@ -87,8 +111,8 @@ impl KeyauthApi {
 
         let mut req_data = HashMap::new();
         req_data.insert("type", encode_lower(b"init"));
-        if hash.is_some() {
-            req_data.insert("hash", Encryption::encrypt(hash.unwrap(), &self.secret, &init_iv));
+        if let Some(hash) = hash {
+            req_data.insert("hash", Encryption::encrypt(hash, &self.secret, &init_iv));
         }
         req_data.insert("ver", Encryption::encrypt(&self.version, &self.secret, &init_iv));
         req_data.insert("name", encode_lower(&self.name.as_bytes()));
@@ -96,7 +120,7 @@ impl KeyauthApi {
         req_data.insert("enckey", Encryption::encrypt(&self.enckey, &self.secret, &init_iv));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.secret, &init_iv);
@@ -138,7 +162,7 @@ impl KeyauthApi {
         req_data.insert("hwid", Encryption::encrypt(&hwidd, &self.enckey, &init_iv));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -168,7 +192,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -199,7 +223,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -235,7 +259,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -265,7 +289,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -289,7 +313,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -314,7 +338,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -338,7 +362,7 @@ impl KeyauthApi {
         req_data.insert("hwid", Encryption::encrypt(&self.hwid, &self.enckey, &init_iv));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -362,7 +386,7 @@ impl KeyauthApi {
         req_data.insert("name", encode_lower(self.name.as_bytes()));
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -381,7 +405,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -405,7 +429,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -430,7 +454,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -453,7 +477,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        Self::request(req_data, &self.api_url);
+        let _ = self.request(req_data, self.api_url.clone());
     }
 
     /// sets a user variable to varvalue
@@ -468,7 +492,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -490,7 +514,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -520,7 +544,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        Self::request(req_data, &self.api_url);
+        let _ = self.request(req_data, self.api_url.clone());
     }
 
     /// changes Username, 
@@ -534,7 +558,7 @@ impl KeyauthApi {
         req_data.insert("ownerid", encode_lower(self.owner_id.as_bytes()));
         req_data.insert("init_iv", init_iv.to_string());
 
-        let req = Self::request(req_data, &self.api_url);
+        let req = self.request(req_data, self.api_url.clone())?;
         let resp = req.text().unwrap();
 
         let resp = Encryption::decrypt(resp, &self.enckey, &init_iv);
@@ -547,18 +571,72 @@ impl KeyauthApi {
         }
     }
 
-    fn request(req_data: HashMap<&str, String>, url: &str) -> reqwest::blocking::Response {
+    fn update_time_from_headers(&self, headers: &HeaderMap) -> Result<(), String> {
+        if !self.time_check_enabled {
+            return Ok(());
+        }
+        let date_value = match headers.get(DATE) {
+            Some(value) => value,
+            None => return Ok(()),
+        };
+        let date_str = date_value
+            .to_str()
+            .map_err(|_| "invalid Date header".to_string())?;
+        let server_time =
+            httpdate::parse_http_date(date_str).map_err(|_| "invalid Date header".to_string())?;
+        let now = SystemTime::now();
+
+        let last_local = *self.local_time_at_server_time.borrow();
+        if let Some(last_local) = last_local {
+            if now.duration_since(last_local).is_err() {
+                return Err("system clock moved backwards; possible time tampering".to_string());
+            }
+        }
+
+        let last_server = *self.server_time_utc.borrow();
+        let last_local = *self.local_time_at_server_time.borrow();
+        if let (Some(last_server), Some(last_local)) = (last_server, last_local) {
+            let elapsed = now
+                .duration_since(last_local)
+                .unwrap_or(Duration::from_secs(0));
+            let expected_server = last_server + elapsed;
+            let drift = if server_time >= expected_server {
+                server_time
+                    .duration_since(expected_server)
+                    .unwrap_or(Duration::from_secs(0))
+            } else {
+                expected_server
+                    .duration_since(server_time)
+                    .unwrap_or(Duration::from_secs(0))
+            };
+            if drift.as_secs() > self.max_time_drift_secs {
+                return Err(
+                    "system clock is out of sync with server time; possible time tampering"
+                        .to_string(),
+                );
+            }
+        }
+
+        *self.server_time_utc.borrow_mut() = Some(server_time);
+        *self.local_time_at_server_time.borrow_mut() = Some(now);
+        Ok(())
+    }
+
+    fn request(&self, req_data: HashMap<&str, String>, url: String) -> Result<Response, String> {
         let client = Client::new();
         let mut req_data_str = String::new();
         for d in req_data {
             req_data_str.push_str(&format!("{}={}&", d.0, d.1))
         }
         req_data_str = req_data_str.strip_suffix("&").unwrap().to_string();
-        client.post(url.to_string())
+        let resp = client.post(url)
             .body(req_data_str)
             .header("User-Agent", "KeyAuth")
             .header("Content-Type", "application/x-www-form-urlencoded")
-            .send().unwrap()
+            .send()
+            .map_err(|err| err.to_string())?;
+        self.update_time_from_headers(resp.headers())?;
+        Ok(resp)
     }
 
     fn gen_init_iv() -> String {
@@ -573,31 +651,31 @@ impl Encryption {
         let mut buffer = [0u8; 128];
         let pos = plain_text.len();
         buffer[..pos].copy_from_slice(plain_text);
-        let cipher = Aes256Cbc::new_from_slices(&key, &iv).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key, iv).unwrap();
         let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
         encode_lower(ciphertext)
     }
 
     fn decrypt_string(cipher_text: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
         let cipher_text = decode(cipher_text).unwrap();
-        let cipher = Aes256Cbc::new_from_slices(&key, &iv).unwrap();
+        let cipher = Aes256Cbc::new_from_slices(key, iv).unwrap();
         cipher.decrypt_vec(&cipher_text).unwrap()
     }
 
     fn encrypt(message: &str, enc_key: &str, iv: &str) -> String {
-        let mut hasher = sha256::digest(enc_key.as_bytes());
+        let hasher = sha256::digest(enc_key.as_bytes());
         let key: String = hasher[..32].to_owned();
 
-        let mut hasher = sha256::digest(iv.as_bytes());
+        let hasher = sha256::digest(iv.as_bytes());
         let iv: String = hasher[..16].to_owned();
         Encryption::encrypt_string(message.as_bytes(), key.as_bytes(), iv.as_bytes())
     }
 
     fn decrypt(message: String, enc_key: &str, iv: &str) -> String {
-        let mut hasher = sha256::digest(enc_key.as_bytes());
+        let hasher = sha256::digest(enc_key.as_bytes());
         let key: String = hasher[..32].to_owned();
 
-        let mut hasher = sha256::digest(iv.as_bytes());
+        let hasher = sha256::digest(iv.as_bytes());
         let iv: String = hasher[..16].to_owned();
         String::from_utf8(Encryption::decrypt_string(
             message.as_bytes(),

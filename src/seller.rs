@@ -1,13 +1,15 @@
-use std::collections::HashMap;
-use reqwest::blocking::{Client};
+use reqwest::blocking::Client;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub(crate) fn request(req_data: HashMap<&str, &str>, url: String) -> reqwest::blocking::Response {
     let client = Client::new();
-    client.get(url)
+    client
+        .get(url)
         .query(&req_data)
         .header("User-Agent", "KeyAuth")
-        .send().unwrap()
+        .send()
+        .unwrap()
 }
 
 /// https://docs.keyauth.cc/seller/licenses
@@ -20,7 +22,7 @@ pub mod licenses {
     pub fn create(sellerkey: &str, url: String, expiry: u64, mask: Option<String>, level: Option<i32>, amount: Option<u8>, owner: Option<String>) -> Result<Vec<String>, String> {
         let mut req_data = HashMap::new();
         req_data.insert("type", "add");
-        req_data.insert("sellerkey", &sellerkey);
+        req_data.insert("sellerkey", sellerkey);
         let expiry = expiry.to_string();
         req_data.insert("expiry", expiry.as_str());
         let mask = match mask {
@@ -28,16 +30,10 @@ pub mod licenses {
             None => "XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX".to_string(),
         };
         req_data.insert("mask", mask.as_str());
-        let level = match level {
-            Some(l) => l,
-            None => 1,
-        };
+        let level = level.unwrap_or(1);
         let level = level.to_string();
         req_data.insert("level", level.as_str());
-        let amount = match amount {
-            Some(a) => a,
-            None => 1,
-        };
+        let amount = amount.unwrap_or(1);
         let amount = amount.to_string();
         req_data.insert("amount", amount.as_str());
         let owner = match owner {
@@ -104,10 +100,7 @@ pub mod licenses {
         req_data.insert("sellerkey", sellerkey);
         req_data.insert("key", license);
         req_data.insert("type", "del");
-        let user_too = match user_too {
-            Some(u) => u,
-            None => false,
-        };
+        let user_too = user_too.unwrap_or_default();
         let user_too = if user_too { 1 } else { 0 };
         let user_too = user_too.to_string();
         req_data.insert("user_too", user_too.as_str());
@@ -220,10 +213,7 @@ pub mod licenses {
         req_data.insert("type", "ban");
         req_data.insert("key", license);
         req_data.insert("reason", reason);
-        let user_too = match user_too {
-            Some(u) => u,
-            None => false,
-        };
+        let user_too = user_too.unwrap_or_default();
         let user_too = if user_too { 1 } else { 0 };
         let user_too = user_too.to_string();
         req_data.insert("user_too", user_too.as_str());
@@ -485,10 +475,7 @@ pub mod user {
         req_data.insert("user", name);
         req_data.insert("sub", sub);
         req_data.insert("expiry", days);
-        let active_only = match active_only {
-            Some(a) => a,
-            None => false,
-        };
+        let active_only = active_only.unwrap_or_default();
         let active_only = if active_only { "1" } else { "0" };
         req_data.insert("active_only", active_only);
 
@@ -1208,11 +1195,11 @@ pub mod blacklists {
         let mut req_data = HashMap::new();
         req_data.insert("sellerkey", sellerkey);
         req_data.insert("type", "black");
-        if ip.is_some() {
-            req_data.insert("ip", ip.unwrap());
+        if let Some(ip) = ip {
+            req_data.insert("ip", ip);
         }
-        if hwid.is_some() {
-            req_data.insert("hwid", hwid.unwrap());
+        if let Some(hwid) = hwid {
+            req_data.insert("hwid", hwid);
         }
 
         let res = super::request(req_data, url);
