@@ -1,8 +1,6 @@
 # KeyAuth Rust library
 https://docs.rs/keyauth/latest/keyauth/
 
-Credits: Nigel (Discord: chefendpoint, Telegram: ELF_Nigel)
-
 ## **Bugs**
 
 If the default example not added to your software isn't functioning how it should, please report a bug here https://keyauth.fdback.io
