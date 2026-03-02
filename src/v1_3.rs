@@ -3,7 +3,7 @@ unofficial [keyauth](https://keyauth.cc) library that uses 1.2 api version
 
 basic usage:
 ```rust
-let mut auth = keyauth::v1_2::KeyauthApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://keyauth.win/api/1.2/"
+let mut auth = keyauth::v1_3::KeyauthApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://keyauth.win/api/1.3/"
 auth.init().unwrap();
 auth.login("username", "password", Some("hwid".to_string()).unwrap()); // if you want to automaticly generate hwid use None insted.
 ```
@@ -58,7 +58,7 @@ pub struct KeyauthApi {
 }
 
 impl KeyauthApi {
-    /// creats a new KeyauthApi and its defaults, api_url has to be api version 1.2 example: "https://keyauth.win/api/1.2/" or if you have a custom api domain: "https://api.example.com/1.2/"
+    /// creats a new KeyauthApi and its defaults, api_url has to be api version 1.3 example: "https://keyauth.win/api/1.3/" or if you have a custom api domain: "https://api.example.com/1.3/"
     pub fn new(name: &str, owner_id: &str, secret: &str, version: &str, api_url: &str) -> Self {
         Self {
             name: name.to_string(),
